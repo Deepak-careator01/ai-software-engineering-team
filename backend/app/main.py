@@ -1,8 +1,8 @@
+from app.core.config import API_VERSION, SERVICE_NAME
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import agent, health, project, workflow
-from app.core.config import API_VERSION, SERVICE_NAME
 
 
 def create_app() -> FastAPI:

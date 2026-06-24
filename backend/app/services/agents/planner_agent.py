@@ -1,10 +1,9 @@
-import json
-import re
 from typing import Any
 
 from app.services.agents.base import BaseAgent
 from app.services.core.llm_service import LLMService
 from app.services.core.schema_validator import SchemaValidator
+from app.services.llm.utils import LLMResponseParser
 
 _FALLBACK_RESPONSE: dict[str, Any] = {
     "agent": "planner",
@@ -33,40 +32,26 @@ class PlannerAgent(BaseAgent):
 
         try:
             service = LLMService()
-            result = service.generate_text(
-                f"""
-You are a Senior Software Architect Planner.
+            result = service.generate_structured_json(
+                f"""You are a Senior Software Architect Planner.
 
 Goal: {goal}
 
-Return a structured JSON with:
+Return a structured JSON object with:
 1. analysis: short explanation of requirement
 2. steps: list of 3-5 high-level development steps
-3. tasks: list of actionable tasks
-
-Return ONLY valid JSON.
-"""
+3. tasks: list of actionable tasks"""
             )
 
-            if not isinstance(result, dict):
-                return SchemaValidator.validate_planner(dict(_FALLBACK_RESPONSE))
-
-            output = result.get("output")
-            parsed = self._parse_llm_output(output)
-            if parsed is None:
+            parsed = result.get("parsed")
+            if not isinstance(parsed, dict):
                 return SchemaValidator.validate_planner(dict(_FALLBACK_RESPONSE))
 
             analysis = parsed.get("analysis")
-            steps = parsed.get("steps")
-            tasks = parsed.get("tasks")
+            steps = LLMResponseParser.normalize_string_list(parsed.get("steps", []))
+            tasks = LLMResponseParser.normalize_string_list(parsed.get("tasks", []))
 
-            if (
-                not isinstance(analysis, str)
-                or not isinstance(steps, list)
-                or not isinstance(tasks, list)
-                or not steps
-                or not tasks
-            ):
+            if not isinstance(analysis, str) or not steps or not tasks:
                 return SchemaValidator.validate_planner(dict(_FALLBACK_RESPONSE))
 
             return SchemaValidator.validate_planner(
@@ -80,32 +65,3 @@ Return ONLY valid JSON.
             )
         except Exception:
             return SchemaValidator.validate_planner(dict(_FALLBACK_RESPONSE))
-
-    def _parse_llm_output(self, raw: Any) -> dict[str, Any] | None:
-        if isinstance(raw, dict):
-            if "analysis" in raw and "steps" in raw and "tasks" in raw:
-                return raw
-            return None
-
-        if not isinstance(raw, str) or not raw.strip():
-            return None
-
-        text = raw.strip()
-
-        try:
-            data = json.loads(text)
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        if json_match:
-            try:
-                data = json.loads(json_match.group())
-                if isinstance(data, dict):
-                    return data
-            except json.JSONDecodeError:
-                pass
-
-        return None

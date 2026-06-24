@@ -1,10 +1,9 @@
-import json
-import re
 from typing import Any
 
 from app.services.agents.base import BaseAgent
 from app.services.core.llm_service import LLMService
 from app.services.core.schema_validator import SchemaValidator
+from app.services.llm.utils import LLMResponseParser
 
 _FALLBACK_CODE_PLAN = [
     "setup project structure",
@@ -25,20 +24,27 @@ class DeveloperAgent(BaseAgent):
 
         try:
             service = LLMService()
-            response = service.generate_text(
-                f"""You are a senior software engineer.
+            result = service.generate_structured_json(
+                f"""You are a senior software developer agent.
 
-Given the system architecture and goal, create a detailed implementation plan.
+Return ONLY valid JSON.
 
-Return ONLY valid JSON in this format:
+STRICT OUTPUT FORMAT:
 
 {{
   "code_plan": [
-    "step 1",
-    "step 2",
-    "step 3"
+    "short actionable step 1",
+    "short actionable step 2",
+    "short actionable step 3"
   ]
 }}
+
+RULES:
+- Each item in code_plan MUST be a simple string
+- Do NOT return objects inside arrays
+- Do NOT include step/task dictionaries
+- Do NOT include explanations
+- Output ONLY valid JSON
 
 Goal:
 {goal}
@@ -47,11 +53,8 @@ Architecture:
 {architecture}"""
             )
 
-            if not isinstance(response, dict):
-                return self._fallback_response()
-
-            parsed = self._parse_llm_output(response.get("output"))
-            if parsed is None:
+            parsed = result.get("parsed")
+            if not isinstance(parsed, dict):
                 return self._fallback_response()
 
             code_plan = parsed.get("code_plan")
@@ -61,7 +64,7 @@ Architecture:
             return SchemaValidator.validate_developer(
                 {
                     "agent": "developer",
-                    "code_plan": code_plan,
+                    "code_plan": LLMResponseParser.normalize_string_list(code_plan),
                     "status": "success",
                 }
             )
@@ -76,32 +79,3 @@ Architecture:
                 "status": "success",
             }
         )
-
-    def _parse_llm_output(self, raw: Any) -> dict[str, Any] | None:
-        if isinstance(raw, dict):
-            if "code_plan" in raw:
-                return raw
-            return None
-
-        if not isinstance(raw, str) or not raw.strip():
-            return None
-
-        text = raw.strip()
-
-        try:
-            data = json.loads(text)
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        if json_match:
-            try:
-                data = json.loads(json_match.group())
-                if isinstance(data, dict):
-                    return data
-            except json.JSONDecodeError:
-                pass
-
-        return None

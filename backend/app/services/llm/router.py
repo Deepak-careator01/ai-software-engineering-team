@@ -1,3 +1,5 @@
+import app.core.config  # noqa: F401 — load .env before provider init
+
 from typing import Any
 
 from app.services.llm.base import BaseLLM
@@ -37,3 +39,10 @@ class LLMRouter:
             "provider_used": "none",
             "output": "All providers failed",
         }
+
+
+if __name__ == "__main__":
+    from app.services.llm.router import LLMRouter
+
+    router = LLMRouter()
+    print(router.generate_text("Write JSON for a todo app architecture"))
