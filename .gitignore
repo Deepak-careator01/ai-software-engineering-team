@@ -1,0 +1,36 @@
+# =============================================================================
+# AI Software Engineering Team — Monorepo root .gitignore
+# Frontend-specific rules (node_modules, .next, etc.) live in frontend/.gitignore
+# =============================================================================
+
+# --- Environment files ---
+.env
+.env.*
+!.env.example
+
+# --- Python (backend) ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# --- Operating system ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+
+# --- Logs ---
+*.log
+
+# --- Docker (local overrides and temp artifacts) ---
+docker-compose.override.yml
+docker-compose.override.yaml
+*.docker.local.yml
+.docker/
