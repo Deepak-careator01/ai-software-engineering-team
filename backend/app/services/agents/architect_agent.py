@@ -1,10 +1,9 @@
-import json
-import re
 from typing import Any
 
 from app.services.agents.base import BaseAgent
 from app.services.core.llm_service import LLMService
 from app.services.core.schema_validator import SchemaValidator
+from app.services.llm.utils import LLMResponseParser
 
 _FALLBACK_ARCHITECTURE = [
     "frontend layer",
@@ -23,7 +22,7 @@ class ArchitectAgent(BaseAgent):
 
         try:
             service = LLMService()
-            response = service.generate_text(
+            result = service.generate_structured_json(
                 f"""You are a senior software architect.
 
 Given the user goal, generate a structured system architecture.
@@ -42,11 +41,8 @@ User goal:
 {goal}"""
             )
 
-            if not isinstance(response, dict):
-                return self._fallback_response()
-
-            parsed = self._parse_llm_output(response.get("output"))
-            if parsed is None:
+            parsed = result.get("parsed")
+            if not isinstance(parsed, dict):
                 return self._fallback_response()
 
             architecture = parsed.get("architecture")
@@ -56,7 +52,9 @@ User goal:
             return SchemaValidator.validate_architect(
                 {
                     "agent": "architect",
-                    "architecture": architecture,
+                    "architecture": LLMResponseParser.normalize_string_list(
+                        architecture
+                    ),
                     "status": "success",
                 }
             )
@@ -71,32 +69,3 @@ User goal:
                 "status": "success",
             }
         )
-
-    def _parse_llm_output(self, raw: Any) -> dict[str, Any] | None:
-        if isinstance(raw, dict):
-            if "architecture" in raw:
-                return raw
-            return None
-
-        if not isinstance(raw, str) or not raw.strip():
-            return None
-
-        text = raw.strip()
-
-        try:
-            data = json.loads(text)
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        if json_match:
-            try:
-                data = json.loads(json_match.group())
-                if isinstance(data, dict):
-                    return data
-            except json.JSONDecodeError:
-                pass
-
-        return None
