@@ -10,3 +10,4 @@ class WorkflowRunRequest(BaseModel):
 class WorkflowRunResponse(BaseModel):
     result: dict[str, Any]
     status: str = "success"
+    workflow_id: str | None = None

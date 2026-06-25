@@ -3,3 +3,7 @@ uvicorn[standard]
 pydantic
 langgraph
 langchain-core
+google-generativeai
+httpx
+python-dotenv
+supabase
