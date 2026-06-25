@@ -1,0 +1,5 @@
+# Minimal Supabase CLI config for remote schema migrations (Phase 4).
+project_id = "ozqykqpdtvvjjpgqqecm"
+
+[db]
+major_version = 15
